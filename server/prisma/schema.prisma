@@ -1,0 +1,230 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Branch {
+  branchId   String  @id @default(cuid())
+  branchName String  @unique
+  branchCode String  @unique @db.VarChar(3)
+  class      Class[]
+
+  @@map("branch")
+}
+
+model Course {
+  courseCode    String  @id
+  courseName    String
+  integratedLab Boolean
+
+  courseUndertaken CourseUndertaken[]
+
+  @@map("course")
+}
+
+model AdminAddedStudentEmail {
+  adminEmailId    String       @id @default(cuid())
+  userId          String?      @unique
+  email           String       @unique
+  usn             String       @unique
+  currentSemester semesterenum
+
+  user Student? @relation(fields: [userId], references: [studentId])
+
+  @@map("adminAddedStudentEmail")
+}
+
+model AdminAddedTeacherEmail {
+  adminEmailId String  @id @default(cuid())
+  userId       String? @unique
+  email        String  @unique
+  employeeId   String  @unique
+
+  user Teacher? @relation(fields: [userId], references: [teacherId])
+
+  @@map("adminAddedTeacherEmail")
+}
+
+model Class {
+  classId         String       @id @default(cuid())
+  branchId        String
+  semester        semesterenum
+  section         String       @db.VarChar(1)
+  yearOfAdmission Int
+
+  studentIds       Student[]
+  courseUndertaken CourseUndertaken[]
+  classTeacher     ClassTeacher[]
+  branch           Branch             @relation(fields: [branchId], references: [branchId], onUpdate: Cascade)
+
+  @@unique([branchId, semester, section, yearOfAdmission])
+  @@map("class")
+}
+
+model CourseUndertaken {
+  courseObjId String @id @default(cuid())
+  courseCode  String
+  teacherId   String
+  classId     String
+
+  attendance Attendance[]
+  class      Class        @relation(fields: [classId], references: [classId], onUpdate: Cascade, map: "fk_classid")
+  course     Course       @relation(fields: [courseCode], references: [courseCode], onUpdate: Cascade, map: "fk_courseid")
+  teacher    Teacher      @relation(fields: [teacherId], references: [teacherId], onUpdate: Cascade, map: "fk_teacherid")
+  scores     Score[]
+
+  @@unique([courseCode, classId])
+  @@map("courseUndertaken")
+}
+
+model Student {
+  studentId     String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  usn           String   @unique @db.VarChar(10)
+  password      String
+  admissionDate DateTime
+
+  studentDetails          StudentDetails?
+  classId                 Class[]
+  attendance              Attendance[]
+  adminAddedStudentEmails AdminAddedStudentEmail?
+  score                   Score[]
+
+  @@map("student")
+}
+
+model StudentDetails {
+  studentId       String       @id
+  dateOfBirth     DateTime?
+  gender          genderenum?
+  address         String?
+  admissionDate   DateTime
+  phNo            String?      @db.VarChar(10)
+  currentSemester semesterenum
+
+  student Student @relation(fields: [studentId], references: [studentId], onDelete: Cascade, onUpdate: Cascade, map: "fk_studentid")
+
+  @@map("studentDetails")
+}
+
+model Teacher {
+  teacherId   String   @id @default(cuid())
+  name        String
+  email       String   @unique
+  employeeId  String   @unique
+  password    String
+  joiningDate DateTime
+
+  courseUndertaken         CourseUndertaken[]
+  teacherDetails           TeacherDetails?
+  classTeacher             ClassTeacher[]
+  adminAddedTeacherDetails AdminAddedTeacherEmail?
+
+  @@map("teacher")
+}
+
+model TeacherDetails {
+  teacherId   String      @id
+  dateOfBirth DateTime?
+  gender      genderenum?
+  address     String?
+  joiningDate DateTime    @default(now())
+  phNo        String?     @db.VarChar(10)
+
+  teacher Teacher @relation(fields: [teacherId], references: [teacherId], onDelete: Cascade, onUpdate: Cascade, map: "fk_teacherid")
+
+  @@map("teacherDetails")
+}
+
+model ClassTeacher {
+  classTeacherId String @id @default(cuid())
+  teacherId      String
+  classId        String @unique
+
+  teacher Teacher @relation(fields: [teacherId], references: [teacherId], onDelete: Cascade, onUpdate: Cascade)
+  class   Class   @relation(fields: [classId], references: [classId], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([teacherId, classId])
+  @@map("classTeacher")
+}
+
+model Admin {
+  adminId     String      @id @default(cuid())
+  name        String
+  email       String      @unique
+  password    String
+  employeeId  String      @unique
+  dateOfBirth DateTime?
+  gender      genderenum?
+  address     String?
+  joiningDate DateTime
+  phNo        String?     @db.VarChar(10)
+
+  @@map("admin")
+}
+
+model Attendance {
+  attendanceId     String @id @default(cuid())
+  courseObjId      String
+  studentId        String
+  classesAttended  Int
+  classesConducted Int
+
+  courseObj CourseUndertaken @relation(fields: [courseObjId], references: [courseObjId])
+  student   Student          @relation(fields: [studentId], references: [studentId])
+
+  @@unique([courseObjId, studentId])
+  @@map("attendance")
+}
+
+model Score {
+  scoreId     String           @id @default(cuid())
+  studentId   String
+  courseObjId String
+  score       Float            @default(0)
+  cie_1       Float
+  cie_2       Float
+  cie_3       Float
+  quiz_1      Float
+  quiz_2      Float
+  aat         Float
+  lab         Float
+  total       Float
+  semester    semesterenum
+  Student     Student          @relation(fields: [studentId], references: [studentId])
+  CourseObj   CourseUndertaken @relation(fields: [courseObjId], references: [courseObjId])
+
+  @@unique([studentId, courseObjId])
+}
+
+enum examenum {
+  cie_1
+  cie_2
+  cie_3
+  quiz_1
+  quiz_2
+  aat
+  lab
+  see
+}
+
+enum genderenum {
+  Male
+  Female
+}
+
+enum semesterenum {
+  a1
+  a2
+  a3
+  a4
+  a5
+  a6
+  a7
+  a8
+}
